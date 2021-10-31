@@ -1,25 +1,46 @@
-import { useMemo, useState } from 'react';
+import { useEffect } from 'react';
+import { connect } from 'react-redux';
+import { NavLink, Switch, Route, Redirect } from 'react-router-dom';
 import PropTypes from 'prop-types';
 import Restaurant from '../restaurant';
-import Tabs from '../tabs';
+import Loader from '../loader';
+import {
+  restaurantsListSelector,
+  restaurantsLoadingSelector,
+  restaurantsLoadedSelector,
+} from '../../redux/selectors';
+import { loadRestaurants } from '../../redux/actions';
 
-function Restaurants({ restaurants }) {
-  const [activeId, setActiveId] = useState(restaurants[0].id);
+import styles from './restaurants.module.css';
 
-  const tabs = useMemo(
-    () => restaurants.map(({ id, name }) => ({ id, label: name })),
-    [restaurants]
-  );
+function Restaurants({ restaurants, loading, loaded, loadRestaurants }) {
+  useEffect(() => {
+    if (!loading && !loaded) loadRestaurants();
+  }, [loading, loaded, loadRestaurants]);
 
-  const activeRestaurant = useMemo(
-    () => restaurants.find((restaurant) => restaurant.id === activeId),
-    [activeId, restaurants]
-  );
+  if (loading) return <Loader />;
+  if (!loaded) return 'No data :(';
 
   return (
     <div>
-      <Tabs tabs={tabs} onChange={setActiveId} activeId={activeId} />
-      <Restaurant restaurant={activeRestaurant} />
+      <div className={styles.tabs}>
+        {restaurants.map(({ id, name }) => (
+          <NavLink
+            key={id}
+            to={`/restaurants/${id}`}
+            className={styles.tab}
+            activeClassName={styles.active}
+          >
+            {name}
+          </NavLink>
+        ))}
+      </div>
+      <Switch>
+        <Route path="/restaurants/:restId">
+          {({ match }) => <Restaurant id={match.params.restId} />}
+        </Route>
+        <Redirect to={`/restaurants/${restaurants[0]?.id}`} />
+      </Switch>
     </div>
   );
 }
@@ -33,4 +54,14 @@ Restaurants.propTypes = {
   ).isRequired,
 };
 
-export default Restaurants;
+const mapStateToProps = (state) => ({
+  restaurants: restaurantsListSelector(state),
+  loading: restaurantsLoadingSelector(state),
+  loaded: restaurantsLoadedSelector(state),
+});
+
+const mapDispatchToProps = {
+  loadRestaurants,
+};
+
+export default connect(mapStateToProps, mapDispatchToProps)(Restaurants);
